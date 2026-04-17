@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>俄羅斯方塊</title>
+<style>
+body{
+    margin:0;
+    background:#111;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    font-family:"Microsoft JhengHei",sans-serif;
+}
+canvas{
+    background:#1a1a2e;
+    border:4px solid #888;
+}
+#info{
+    position:absolute;
+    top:10px;
+    color:white;
+    font-size:18px;
+}
+</style>
+</head>
+<body>
+
+<div id="info">← → 移動　↑旋轉　↓加速　空白鍵直落</div>
+<canvas id="game" width="300" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const COLS = 10;
+const ROWS = 20;
+const SIZE = 30;
+
+const colors = [
+ null,
+ "#00FFFF","#FFFF00","#AA00FF","#00FF00",
+ "#FF0000","#0000FF","#FFA500"
+];
+
+const shapes = [
+ [[1,1,1,1]],
+ [[1,1],[1,1]],
+ [[0,1,0],[1,1,1]],
+ [[0,1,1],[1,1,0]],
+ [[1,1,0],[0,1,1]],
+ [[1,0,0],[1,1,1]],
+ [[0,0,1],[1,1,1]]
+];
+
+let board = Array.from({length:ROWS},()=>Array(COLS).fill(0));
+
+function newPiece(){
+    let id = Math.floor(Math.random()*shapes.length);
+    return {
+        shape: shapes[id],
+        color:id+1,
+        x:3,
+        y:0
+    };
+}
+
+let piece = newPiece();
+
+function drawCell(x,y,color){
+    ctx.fillStyle = colors[color];
+    ctx.fillRect(x*SIZE,y*SIZE,SIZE,SIZE);
+    ctx.strokeStyle="#222";
+    ctx.strokeRect(x*SIZE,y*SIZE,SIZE,SIZE);
+}
+
+function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    for(let y=0;y<ROWS;y++){
+        for(let x=0;x<COLS;x++){
+            if(board[y][x]) drawCell(x,y,board[y][x]);
+        }
+    }
+
+    piece.shape.forEach((row,dy)=>{
+        row.forEach((v,dx)=>{
+            if(v){
+                drawCell(piece.x+dx,piece.y+dy,piece.color);
+            }
+        });
+    });
+}
+
+function collide(nx,ny,shape){
+    for(let y=0;y<shape.length;y++){
+        for(let x=0;x<shape[y].length;x++){
+            if(shape[y][x]){
+                let px = nx+x;
+                let py = ny+y;
+                if(px<0 || px>=COLS || py>=ROWS) return true;
+                if(py>=0 && board[py][px]) return true;
+            }
+        }
+    }
+    return false;
+}
+
+function merge(){
+    piece.shape.forEach((row,y)=>{
+        row.forEach((v,x)=>{
+            if(v){
+                board[piece.y+y][piece.x+x]=piece.color;
+            }
+        });
+    });
+}
+
+function clearLines(){
+    for(let y=ROWS-1;y>=0;y--){
+        if(board[y].every(v=>v)){
+            board.splice(y,1);
+            board.unshift(Array(COLS).fill(0));
+            y++;
+        }
+    }
+}
+
+function rotate(shape){
+    return shape[0].map((_,i)=>
+        shape.map(row=>row[i]).reverse()
+    );
+}
+
+function drop(){
+    if(!collide(piece.x,piece.y+1,piece.shape)){
+        piece.y++;
+    }else{
+        merge();
+        clearLines();
+        piece = newPiece();
+
+        if(collide(piece.x,piece.y,piece.shape)){
+            alert("GAME OVER");
+            board = Array.from({length:ROWS},()=>Array(COLS).fill(0));
+        }
+    }
+}
+
+document.addEventListener("keydown",e=>{
+    if(e.key==="ArrowLeft"){
+        if(!collide(piece.x-1,piece.y,piece.shape)) piece.x--;
+    }
+    if(e.key==="ArrowRight"){
+        if(!collide(piece.x+1,piece.y,piece.shape)) piece.x++;
+    }
+    if(e.key==="ArrowDown"){
+        drop();
+    }
+    if(e.key==="ArrowUp"){
+        let r = rotate(piece.shape);
+        if(!collide(piece.x,piece.y,r)) piece.shape=r;
+    }
+    if(e.code==="Space"){
+        while(!collide(piece.x,piece.y+1,piece.shape)){
+            piece.y++;
+        }
+        drop();
+    }
+});
+
+setInterval(()=>{
+    drop();
+    draw();
+},500);
+
+draw();
+</script>
+</body>
+</html>
